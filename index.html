@@ -6,12 +6,12 @@
 <title>Calculadora Gacha - R3Y</title>
 <style>
 body { font-family: Arial, sans-serif; background: #f0f2f5; margin:0; padding:0; }
-.container { max-width: 800px; margin: auto; padding: 20px; background: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);}
+.container { max-width: 900px; margin: auto; padding: 20px; background: #fff; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.1);}
 h1, h2 { text-align: center; }
 label { display:block; margin-top:10px; }
 input[type=number], select { width:100%; padding:8px; margin-top:5px; }
 button { margin-top:15px; padding:10px 20px; font-size:16px; cursor:pointer; }
-.result { margin-top:20px; padding:15px; background:#eef; border-radius:8px; }
+.result { margin-top:20px; padding:15px; background:#eef; border-radius:8px; white-space: pre-line; }
 .footer { text-align:center; margin-top:30px; font-size:14px; color:#555; }
 .lang-select { float:right; }
 </style>
@@ -48,7 +48,7 @@ button { margin-top:15px; padding:10px 20px; font-size:16px; cursor:pointer; }
         <option value="baston">Bastón de mariposa (Bellotas) - 50k</option>
     </select>
 
-    <button onclick="calcular()">Calcular</button>
+    <button onclick="calcular()" id="calc-btn">Calcular</button>
 
     <div class="result" id="resultado"></div>
 
@@ -56,6 +56,7 @@ button { margin-top:15px; padding:10px 20px; font-size:16px; cursor:pointer; }
 </div>
 
 <script>
+// Datos de ítems
 const items = {
     sigilF: {tipo:'fuego', precio:20000, wish:true},
     sigilH: {tipo:'hielo', precio:20000, wish:true},
@@ -66,43 +67,95 @@ const items = {
     baston: {tipo:'bellotas', precio:50000}
 };
 
-const costoPack = {fuego:30, hielo:30, bellotas:30}; // monedas del juego por pack
+// Packs
+const costoPack = {fuego:30, hielo:30, bellotas:30};
 const unidadesPorPack = {fuego:100, hielo:100, bellotas:168};
+
+// Distribución de monedas por tirada (Turbo Rush)
+const distMonedas = [20, 30, 42, 60];
+const distProbs = [0.4286, 0.2857, 0.2143, 0.0714];
+const grandPrize = 88;
+const probGrandPrize = 0.057143;
+
+// Función para simular tiradas Monte Carlo
+function simular(faltante, tipo, sim=10000) {
+    let tiradasNecesarias = [];
+    for(let s=0; s<sim; s++){
+        let total=0;
+        let tiradas=0;
+        while(total < faltante){
+            tiradas++;
+            // tirar monedas según distribución
+            let r = Math.random();
+            let suma=0;
+            for(let i=0;i<distMonedas.length;i++){
+                suma+=distProbs[i];
+                if(r <= suma){
+                    total += distMonedas[i];
+                    break;
+                }
+            }
+            if(Math.random() <= probGrandPrize) total += grandPrize;
+        }
+        tiradasNecesarias.push(tiradas);
+    }
+    const promedio = tiradasNecesarias.reduce((a,b)=>a+b,0)/sim;
+    return promedio;
+}
 
 function calcular(){
     const inventario = {
         fuego: parseFloat(document.getElementById('fuego').value),
         hielo: parseFloat(document.getElementById('hielo').value),
-        bellotas: parseFloat(document.getElementById('bellotas').value)
+        bellotas: parseFloat(document.getElementById('bellotas').value),
+        wish: 0
     };
+    const lang = document.getElementById('lang').value;
+
     const itemKey = document.getElementById('item').value;
     const item = items[itemKey];
 
     let faltante = item.precio - inventario[item.tipo];
-    if(faltante < 0) faltante = 0;
+    if(faltante<0) faltante=0;
 
     // Packs necesarios
     const packsNecesarios = Math.ceil(faltante / unidadesPorPack[item.tipo]);
     const costePacks = packsNecesarios * costoPack[item.tipo];
 
-    // Si es Sigil, calcular Wish Crystals
-    let faltanteWish = 0;
-    let mensajeWish = '';
-    if(item.wish){
-        faltanteWish = Math.ceil(faltante / 1000); // 1k monedas = 1 Wish Crystal
-        mensajeWish = `Faltante en Wish Crystals: ${faltanteWish} (4 por Sigil)`;
-        const costeWish = faltanteWish * 30; // 1 wish cristal = 30 monedas
-        mensajeWish += `<br>Coste equivalente en Wish Crystals: ${costeWish} monedas`;
-        mensajeWish += `<br>Comparación: ${costeWish < costePacks ? 'Más rentable usar Wish Crystals' : 'Más rentable comprar packs'}`;
+    // Tiradas para packs
+    const tiradasPacks = simular(faltante, item.tipo);
+
+    let mensaje='';
+    if(lang==='es'){
+        mensaje+=`Faltante en monedas: ${faltante}\n`;
+        mensaje+=`Packs necesarios: ${packsNecesarios}\n`;
+        mensaje+=`Coste en packs (monedas): ${costePacks}\n`;
+        mensaje+=`Tiradas promedio necesarias para packs: ${tiradasPacks.toFixed(1)}\n`;
+    } else {
+        mensaje+=`Remaining coins: ${faltante}\n`;
+        mensaje+=`Packs needed: ${packsNecesarios}\n`;
+        mensaje+=`Cost in packs (coins): ${costePacks}\n`;
+        mensaje+=`Average rolls needed for packs: ${tiradasPacks.toFixed(1)}\n`;
     }
 
-    const res = `
-    <strong>Faltante en monedas:</strong> ${faltante.toFixed(0)}<br>
-    <strong>Packs necesarios:</strong> ${packsNecesarios}<br>
-    <strong>Coste en packs (monedas):</strong> ${costePacks}<br>
-    ${mensajeWish}
-    `;
-    document.getElementById('resultado').innerHTML = res;
+    if(item.wish){
+        const wishPorSigil = 4;
+        const faltanteWish = Math.max(wishPorSigil - inventario.wish, 0);
+        const tiradasWish = simular(faltanteWish*1000, item.tipo);
+        if(lang==='es'){
+            mensaje+=`Faltante en Wish Crystals: ${faltanteWish} (4 por Sigil)\n`;
+            mensaje+=`Tiradas promedio para Wish Crystals: ${tiradasWish.toFixed(1)}\n`;
+            const ruta = tiradasWish < tiradasPacks ? 'Más rentable usar Wish Crystals' : 'Más rentable comprar packs';
+            mensaje+=`Ruta más probable: ${ruta}`;
+        } else {
+            mensaje+=`Remaining Wish Crystals: ${faltanteWish} (4 per Sigil)\n`;
+            mensaje+=`Average rolls for Wish Crystals: ${tiradasWish.toFixed(1)}\n`;
+            const ruta = tiradasWish < tiradasPacks ? 'More profitable to use Wish Crystals' : 'More profitable to buy packs';
+            mensaje+=`Most probable route: ${ruta}`;
+        }
+    }
+
+    document.getElementById('resultado').innerText = mensaje;
 }
 
 // Idiomas
@@ -129,7 +182,6 @@ const textos = {
     }
 };
 
-// Nombres de ítems en inglés
 const itemsEn = {
     sigilF: 'Sigil (Fire) - 20k',
     sigilH: 'Sigil (Ice) - 20k',
@@ -140,34 +192,33 @@ const itemsEn = {
     baston: 'Butterfly Staff (Acorns) - 50k'
 };
 
-document.getElementById('lang').addEventListener('change', function(){
-    const lang = this.value;
-    document.getElementById('title').innerText = textos[lang].title;
-    document.getElementById('subtitle').innerText = textos[lang].subtitle;
-    document.getElementById('label-fuego').innerText = textos[lang].labelF;
-    document.getElementById('label-hielo').innerText = textos[lang].labelH;
-    document.getElementById('label-bellotas').innerText = textos[lang].labelB;
-    document.getElementById('label-item').innerText = textos[lang].labelItem;
-    document.querySelector('button').innerText = textos[lang].button;
-    document.getElementById('footer').innerText = textos[lang].footer;
+document.getElementById('lang').addEventListener('change',()=>{
+    const lang=document.getElementById('lang').value;
+    document.getElementById('title').innerText=textos[lang].title;
+    document.getElementById('subtitle').innerText=textos[lang].subtitle;
+    document.getElementById('label-fuego').innerText=textos[lang].labelF;
+    document.getElementById('label-hielo').innerText=textos[lang].labelH;
+    document.getElementById('label-bellotas').innerText=textos[lang].labelB;
+    document.getElementById('label-item').innerText=textos[lang].labelItem;
+    document.getElementById('calc-btn').innerText=textos[lang].button;
+    document.getElementById('footer').innerText=textos[lang].footer;
 
-    const sel = document.getElementById('item');
     if(lang==='en'){
-        sel.options[0].text = itemsEn.sigilF;
-        sel.options[1].text = itemsEn.sigilH;
-        sel.options[2].text = itemsEn.armaF;
-        sel.options[3].text = itemsEn.armaH;
-        sel.options[4].text = itemsEn.zanahoria;
-        sel.options[5].text = itemsEn.corazon;
-        sel.options[6].text = itemsEn.baston;
+        document.getElementById('item').options[0].text = itemsEn.sigilF;
+        document.getElementById('item').options[1].text = itemsEn.sigilH;
+        document.getElementById('item').options[2].text = itemsEn.armaF;
+        document.getElementById('item').options[3].text = itemsEn.armaH;
+        document.getElementById('item').options[4].text = itemsEn.zanahoria;
+        document.getElementById('item').options[5].text = itemsEn.corazon;
+        document.getElementById('item').options[6].text = itemsEn.baston;
     } else {
-        sel.options[0].text = 'Sigil (Fuego) - 20k';
-        sel.options[1].text = 'Sigil (Hielo) - 20k';
-        sel.options[2].text = 'Arma (Fuego) - 30k';
-        sel.options[3].text = 'Arma (Hielo) - 30k';
-        sel.options[4].text = 'Zanahoria (Hielo) - 20k';
-        sel.options[5].text = 'Corazón de veneno (Bellotas) - 15k';
-        sel.options[6].text = 'Bastón de mariposa (Bellotas) - 50k';
+        document.getElementById('item').options[0].text = 'Sigil (Fuego) - 20k';
+        document.getElementById('item').options[1].text = 'Sigil (Hielo) - 20k';
+        document.getElementById('item').options[2].text = 'Arma (Fuego) - 30k';
+        document.getElementById('item').options[3].text = 'Arma (Hielo) - 30k';
+        document.getElementById('item').options[4].text = 'Zanahoria (Hielo) - 20k';
+        document.getElementById('item').options[5].text = 'Corazón de veneno (Bellotas) - 15k';
+        document.getElementById('item').options[6].text = 'Bastón de mariposa (Bellotas) - 50k';
     }
 });
 </script>
