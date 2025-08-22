@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora Gacha - R3Y</title>
+<style>
+body { font-family: Arial, sans-serif; background: #f0f2f5; margin:0; padding:0; }
+.container { max-width: 800px; margin: auto; padding: 20px; background: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);}
+h1, h2 { text-align: center; }
+label { display:block; margin-top:10px; }
+input[type=number] { width:100%; padding:8px; margin-top:5px; }
+select { width:100%; padding:8px; margin-top:5px; }
+button { margin-top:15px; padding:10px 20px; font-size:16px; cursor:pointer; }
+.result { margin-top:20px; padding:15px; background:#eef; border-radius:8px; }
+.footer { text-align:center; margin-top:30px; font-size:14px; color:#555; }
+.lang-select { float:right; }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1 id="title">Calculadora Gacha</h1>
+    <div class="lang-select">
+        <label for="lang">Language / Idioma:</label>
+        <select id="lang">
+            <option value="es">Español</option>
+            <option value="en">English</option>
+        </select>
+    </div>
+    <h2 id="subtitle">Rellena tu inventario y calcula</h2>
+    
+    <label id="label-fuego">Fuego (Fueguitos) actuales:</label>
+    <input type="number" id="fuego" value="0" min="0">
+
+    <label id="label-hielo">Hielo (Copitos) actuales:</label>
+    <input type="number" id="hielo" value="0" min="0">
+
+    <label id="label-bellotas">Bellotas actuales:</label>
+    <input type="number" id="bellotas" value="0" min="0">
+
+    <label id="label-item">Selecciona ítem:</label>
+    <select id="item">
+        <option value="sigilF">Sigil (Fuego) - 20k</option>
+        <option value="sigilH">Sigil (Hielo) - 20k</option>
+        <option value="armaF">Arma (Fuego) - 30k</option>
+        <option value="armaH">Arma (Hielo) - 30k</option>
+        <option value="zanahoria">Zanahoria (Hielo) - 20k</option>
+        <option value="corazon">Corazón de veneno (Bellotas) - 15k</option>
+        <option value="baston">Bastón de mariposa (Bellotas) - 50k</option>
+    </select>
+
+    <label id="label-modelo">Selecciona modelo de tiradas:</label>
+    <select id="modelo">
+        <option value="A">Modelo A (18,000 tickets/5 tiradas)</option>
+        <option value="B">Modelo B (200→3200 tickets)</option>
+    </select>
+
+    <button onclick="calcular()">Calcular</button>
+
+    <div class="result" id="resultado">
+        <!-- Resultados aparecerán aquí -->
+    </div>
+
+    <div class="footer" id="footer">Calculadora Gacha hecha por R3Y</div>
+</div>
+
+<script>
+const items = {
+    sigilF: {tipo:'fuego', precio:20000},
+    sigilH: {tipo:'hielo', precio:20000},
+    armaF: {tipo:'fuego', precio:30000},
+    armaH: {tipo:'hielo', precio:30000},
+    zanahoria: {tipo:'hielo', precio:20000},
+    corazon: {tipo:'bellotas', precio:15000},
+    baston: {tipo:'bellotas', precio:50000}
+};
+
+const costoUnitario = {fuego:0.30, hielo:0.30, bellotas:0.1786}; // € por unidad
+const monedasPorTirada = 25.3137; // Esperanza de Wish Coins por tirada
+
+function calcular(){
+    const inventario = {
+        fuego: parseFloat(document.getElementById('fuego').value),
+        hielo: parseFloat(document.getElementById('hielo').value),
+        bellotas: parseFloat(document.getElementById('bellotas').value)
+    };
+    const itemKey = document.getElementById('item').value;
+    const modelo = document.getElementById('modelo').value;
+    const item = items[itemKey];
+
+    let faltante = item.precio - inventario[item.tipo];
+    if(faltante < 0) faltante = 0;
+
+    // Coste packs
+    const costePacks = faltante * costoUnitario[item.tipo];
+    const packsNecesarios = Math.ceil(faltante / (item.tipo==='bellotas'?168:100));
+
+    // Tiradas
+    let costoTirada;
+    if(modelo==='A'){
+        costoTirada = 36; // € por tirada
+    } else {
+        costoTirada = 12.4; // € por tirada (Modelo B)
+    }
+    const tiradasEsperadas = faltante / monedasPorTirada;
+    const costeTiradas = tiradasEsperadas * costoTirada;
+
+    const res = `
+    <strong>Faltante en monedas:</strong> ${faltante.toFixed(0)}<br>
+    <strong>Packs necesarios:</strong> ${packsNecesarios}<br>
+    <strong>Coste esperado comprando packs:</strong> ${costePacks.toFixed(2)} €<br>
+    <strong>Tiradas esperadas:</strong> ${tiradasEsperadas.toFixed(1)}<br>
+    <strong>Coste esperado en tiradas:</strong> ${costeTiradas.toFixed(2)} €
+    `;
+    document.getElementById('resultado').innerHTML = res;
+}
+
+// Idiomas
+const textos = {
+    es:{
+        title:'Calculadora Gacha',
+        subtitle:'Rellena tu inventario y calcula',
+        labelF:'Fuego (Fueguitos) actuales:',
+        labelH:'Hielo (Copitos) actuales:',
+        labelB:'Bellotas actuales:',
+        labelItem:'Selecciona ítem:',
+        labelModelo:'Selecciona modelo de tiradas:',
+        button:'Calcular',
+        footer:'Calculadora Gacha hecha por R3Y'
+    },
+    en:{
+        title:'Gacha Calculator',
+        subtitle:'Fill your inventory and calculate',
+        labelF:'Fire (Fueguitos) current:',
+        labelH:'Ice (Copitos) current:',
+        labelB:'Acorns current:',
+        labelItem:'Select item:',
+        labelModelo:'Select draw model:',
+        button:'Calculate',
+        footer:'Gacha Calculator by R3Y'
+    }
+};
+
+document.getElementById('lang').addEventListener('change', function(){
+    const lang = this.value;
+    document.getElementById('title').innerText = textos[lang].title;
+    document.getElementById('subtitle').innerText = textos[lang].subtitle;
+    document.getElementById('label-fuego').innerText = textos[lang].labelF;
+    document.getElementById('label-hielo').innerText = textos[lang].labelH;
+    document.getElementById('label-bellotas').innerText = textos[lang].labelB;
+    document.getElementById('label-item').innerText = textos[lang].labelItem;
+    document.getElementById('label-modelo').innerText = textos[lang].labelModelo;
+    document.querySelector('button').innerText = textos[lang].button;
+    document.getElementById('footer').innerText = textos[lang].footer;
+});
+</script>
+</body>
+</html>
