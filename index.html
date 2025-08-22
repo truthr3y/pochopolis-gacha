@@ -9,8 +9,7 @@ body { font-family: Arial, sans-serif; background: #f0f2f5; margin:0; padding:0;
 .container { max-width: 800px; margin: auto; padding: 20px; background: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);}
 h1, h2 { text-align: center; }
 label { display:block; margin-top:10px; }
-input[type=number] { width:100%; padding:8px; margin-top:5px; }
-select { width:100%; padding:8px; margin-top:5px; }
+input[type=number], select { width:100%; padding:8px; margin-top:5px; }
 button { margin-top:15px; padding:10px 20px; font-size:16px; cursor:pointer; }
 .result { margin-top:20px; padding:15px; background:#eef; border-radius:8px; }
 .footer { text-align:center; margin-top:30px; font-size:14px; color:#555; }
@@ -49,25 +48,17 @@ button { margin-top:15px; padding:10px 20px; font-size:16px; cursor:pointer; }
         <option value="baston">Bastón de mariposa (Bellotas) - 50k</option>
     </select>
 
-    <label id="label-modelo">Selecciona modelo de tiradas:</label>
-    <select id="modelo">
-        <option value="A">Modelo A (18,000 tickets/5 tiradas)</option>
-        <option value="B">Modelo B (200→3200 tickets)</option>
-    </select>
-
     <button onclick="calcular()">Calcular</button>
 
-    <div class="result" id="resultado">
-        <!-- Resultados aparecerán aquí -->
-    </div>
+    <div class="result" id="resultado"></div>
 
     <div class="footer" id="footer">Calculadora Gacha hecha por R3Y</div>
 </div>
 
 <script>
 const items = {
-    sigilF: {tipo:'fuego', precio:20000},
-    sigilH: {tipo:'hielo', precio:20000},
+    sigilF: {tipo:'fuego', precio:20000, wish:true},
+    sigilH: {tipo:'hielo', precio:20000, wish:true},
     armaF: {tipo:'fuego', precio:30000},
     armaH: {tipo:'hielo', precio:30000},
     zanahoria: {tipo:'hielo', precio:20000},
@@ -75,8 +66,8 @@ const items = {
     baston: {tipo:'bellotas', precio:50000}
 };
 
-const costoUnitario = {fuego:0.30, hielo:0.30, bellotas:0.1786}; // € por unidad
-const monedasPorTirada = 25.3137; // Esperanza de Wish Coins por tirada
+const costoPack = {fuego:30, hielo:30, bellotas:30}; // monedas del juego por pack
+const unidadesPorPack = {fuego:100, hielo:100, bellotas:168};
 
 function calcular(){
     const inventario = {
@@ -85,32 +76,31 @@ function calcular(){
         bellotas: parseFloat(document.getElementById('bellotas').value)
     };
     const itemKey = document.getElementById('item').value;
-    const modelo = document.getElementById('modelo').value;
     const item = items[itemKey];
 
     let faltante = item.precio - inventario[item.tipo];
     if(faltante < 0) faltante = 0;
 
-    // Coste packs
-    const costePacks = faltante * costoUnitario[item.tipo];
-    const packsNecesarios = Math.ceil(faltante / (item.tipo==='bellotas'?168:100));
+    // Packs necesarios
+    const packsNecesarios = Math.ceil(faltante / unidadesPorPack[item.tipo]);
+    const costePacks = packsNecesarios * costoPack[item.tipo];
 
-    // Tiradas
-    let costoTirada;
-    if(modelo==='A'){
-        costoTirada = 36; // € por tirada
-    } else {
-        costoTirada = 12.4; // € por tirada (Modelo B)
+    // Si es Sigil, calcular Wish Crystals
+    let faltanteWish = 0;
+    let mensajeWish = '';
+    if(item.wish){
+        faltanteWish = Math.ceil(faltante / 1000); // 1k monedas = 1 Wish Crystal
+        mensajeWish = `Faltante en Wish Crystals: ${faltanteWish} (4 por Sigil)`;
+        const costeWish = faltanteWish * 30; // 1 wish cristal = 30 monedas
+        mensajeWish += `<br>Coste equivalente en Wish Crystals: ${costeWish} monedas`;
+        mensajeWish += `<br>Comparación: ${costeWish < costePacks ? 'Más rentable usar Wish Crystals' : 'Más rentable comprar packs'}`;
     }
-    const tiradasEsperadas = faltante / monedasPorTirada;
-    const costeTiradas = tiradasEsperadas * costoTirada;
 
     const res = `
     <strong>Faltante en monedas:</strong> ${faltante.toFixed(0)}<br>
     <strong>Packs necesarios:</strong> ${packsNecesarios}<br>
-    <strong>Coste esperado comprando packs:</strong> ${costePacks.toFixed(2)} €<br>
-    <strong>Tiradas esperadas:</strong> ${tiradasEsperadas.toFixed(1)}<br>
-    <strong>Coste esperado en tiradas:</strong> ${costeTiradas.toFixed(2)} €
+    <strong>Coste en packs (monedas):</strong> ${costePacks}<br>
+    ${mensajeWish}
     `;
     document.getElementById('resultado').innerHTML = res;
 }
@@ -124,21 +114,30 @@ const textos = {
         labelH:'Hielo (Copitos) actuales:',
         labelB:'Bellotas actuales:',
         labelItem:'Selecciona ítem:',
-        labelModelo:'Selecciona modelo de tiradas:',
         button:'Calcular',
         footer:'Calculadora Gacha hecha por R3Y'
     },
     en:{
         title:'Gacha Calculator',
         subtitle:'Fill your inventory and calculate',
-        labelF:'Fire (Fueguitos) current:',
-        labelH:'Ice (Copitos) current:',
+        labelF:'Fire current:',
+        labelH:'Ice current:',
         labelB:'Acorns current:',
         labelItem:'Select item:',
-        labelModelo:'Select draw model:',
         button:'Calculate',
         footer:'Gacha Calculator by R3Y'
     }
+};
+
+// Nombres de ítems en inglés
+const itemsEn = {
+    sigilF: 'Sigil (Fire) - 20k',
+    sigilH: 'Sigil (Ice) - 20k',
+    armaF: 'Weapon (Fire) - 30k',
+    armaH: 'Weapon (Ice) - 30k',
+    zanahoria: 'Carrot (Ice) - 20k',
+    corazon: 'Poison Heart (Acorns) - 15k',
+    baston: 'Butterfly Staff (Acorns) - 50k'
 };
 
 document.getElementById('lang').addEventListener('change', function(){
@@ -149,9 +148,27 @@ document.getElementById('lang').addEventListener('change', function(){
     document.getElementById('label-hielo').innerText = textos[lang].labelH;
     document.getElementById('label-bellotas').innerText = textos[lang].labelB;
     document.getElementById('label-item').innerText = textos[lang].labelItem;
-    document.getElementById('label-modelo').innerText = textos[lang].labelModelo;
     document.querySelector('button').innerText = textos[lang].button;
     document.getElementById('footer').innerText = textos[lang].footer;
+
+    const sel = document.getElementById('item');
+    if(lang==='en'){
+        sel.options[0].text = itemsEn.sigilF;
+        sel.options[1].text = itemsEn.sigilH;
+        sel.options[2].text = itemsEn.armaF;
+        sel.options[3].text = itemsEn.armaH;
+        sel.options[4].text = itemsEn.zanahoria;
+        sel.options[5].text = itemsEn.corazon;
+        sel.options[6].text = itemsEn.baston;
+    } else {
+        sel.options[0].text = 'Sigil (Fuego) - 20k';
+        sel.options[1].text = 'Sigil (Hielo) - 20k';
+        sel.options[2].text = 'Arma (Fuego) - 30k';
+        sel.options[3].text = 'Arma (Hielo) - 30k';
+        sel.options[4].text = 'Zanahoria (Hielo) - 20k';
+        sel.options[5].text = 'Corazón de veneno (Bellotas) - 15k';
+        sel.options[6].text = 'Bastón de mariposa (Bellotas) - 50k';
+    }
 });
 </script>
 </body>
